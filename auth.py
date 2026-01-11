@@ -2,12 +2,8 @@ import pandas as pd
 import streamlit as st
 import os 
 import hashlib
-from dotenv import load_dotenv
 
-load_dotenv()
-
-
-SALT = os.getenv("SALT")
+SALT = st.secrets["SALT"]
 USERS_FILE = "users.csv"
 
 def hash_senha(senha):
