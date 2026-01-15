@@ -1,6 +1,2 @@
 .env
-__pycache__/
-users.csv
-data/
-*.pyc
-venv/
+.streamlit/secrets.toml

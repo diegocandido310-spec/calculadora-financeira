@@ -26,9 +26,11 @@ def mostrar_login():
             st.session_state.logado = True
             st.session_state.usuario = user.email
             st.session_state.nome = nome
+            st.session_state.user_id = user.id
             st.session_state.pagina = "app"
+            st.session_state.access_token = response.session.access_token
+            st.session_state.refresh_token = response.session.refresh_token
             st.rerun()
-
         except Exception:
             st.error("Email ou senha inválidos")
 

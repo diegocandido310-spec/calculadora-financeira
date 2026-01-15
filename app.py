@@ -6,22 +6,42 @@ from supabase import create_client
 SUPABASE_URL = st.secrets ["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+def get_supabase():
+    client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+    if "access_token" in st.session_state:
+        client.auth.set_session(
+            st.session_state.access_token,
+            st.session_state.refresh_token
+        )
+    return client
 
 def salvar_ganho(data, descricao, valor):
+    supabase = get_supabase()
     user = supabase.auth.get_user()
+
+    if user is None or user.user is None:
+        st.error("Usuário não autenticado")
+        return
+
     supabase.table("ganhos").insert({
         "user_id": user.user.id,
-        "data": data.isoformat(),
+        "data_lancamento": data.isoformat(),
         "descricao": descricao,
         "valor": valor
     }).execute()
 
 def salvar_despesa(data, descricao, valor):
+    supabase = get_supabase()
     user = supabase.auth.get_user()
+
+    if user is None or user.user is None:
+        st.error("Usuario não autenticado")
+        return
+
     supabase.table("despesas").insert({
         "user_id": user.user.id,
-        "data": data.isoformat(),
+        "data_lancamento": data.isoformat(),
         "descricao": descricao,
         "valor": valor
     }).execute()
@@ -48,7 +68,8 @@ def mostrar_app():
 
     st.sidebar.success(f"Olá, {st.session_state.nome}")
 
-    if st.sidebar.button("Sair"):  
+    if st.sidebar.button("Sair"):
+       supabase = get_supabase 
        supabase.auth.sign_out()
        st.session_state.clear()
        st.rerun()
@@ -70,12 +91,12 @@ def mostrar_app():
     with tab_ganho:
         st.subheader("Registrar Ganho")
 
-        data = st.date_input("Data", key = "data_ganho")
-        descricao = st.text.input("Descrição", key = "desc_ganho")
-        valor = st.number_input("valor", min_value=0.0, format="%.2f", key = "valor_ganho")
+        data = st.date_input("Data", key="ganho_data")
+        descricao = st.text_input("Descrição", key="ganho_descricao")
+        valor = st.number_input("valor", min_value=0.0, format="%.2f", key="ganho_valor")
 
         if st.button("Salvar ganho"):
-            if descricao.strip() == "" or valor <0:
+            if descricao.strip() == "" or valor <=0:
                 st.warning("Preencha todos os campos corretamente")
             
             else:
@@ -86,25 +107,41 @@ def mostrar_app():
     with tab_despesa:
         st.subheader("Registrar Despesa")
 
-        data = st.date_input("Data", key="data_despesa")
-        descricao = st.text.input("Descrição", "desc_despesa")
-        valor = st.number_input("valor", min_value=0.0, format="%.2f", key= "valor_despesa")
+        data = st.date_input("Data", key="despesa_data")
+        descricao = st.text_input("Descrição", key="despesa_descricao")
+        valor = st.number_input("valor", min_value=0.0, format="%.2f", key="despesa_valor")
 
-        if st.button("Salvar ganho"):
-            if descricao.strip() == "" or valor <0:
+        if st.button("Salvar despesa"):
+            if descricao.strip() == "" or valor <=0:
                 st.warning("Preencha todos os campos corretamente")
             
             else:
-                salvar_ganho(data, descricao, valor)
-                st.success("Ganho registrado com sucesso!")
+                salvar_despesa(data, descricao, valor)
+                st.success("Despesa registrada com sucesso!")
        
 
     with tab_resumo:
         st.subheader("Resumo")
 
-        ganhos = supabase.table("ganhos"). select("*").execute().data
-        despesas = supabase.table("despesas").select("*").execute().data
+        supabase = get_supabase()
+        user = supabase.auth.get_user()
 
+        ganhos = (
+            supabase
+            .table("ganhos")
+            .select("valor")
+            .eq("user_id", user.user.id)
+            .execute()
+            .data
+        )
+        despesas =( 
+            supabase
+            .table("despesas")
+            .select("*")
+            .eq("user_id", user.user.id)
+            .execute()
+            .data
+        )
         total_ganhos = sum(item["valor"] for item in ganhos)
         total_despesas = sum(item["valor"] for item in despesas)
 
