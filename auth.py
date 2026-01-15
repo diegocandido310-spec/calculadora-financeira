@@ -1,50 +1,11 @@
-import pandas as pd
 import streamlit as st
 import os 
-import hashlib
 from supabase import create_client
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_URL = st.secrets("SUPABASE_URL")
+SUPABASE_KEY = st.secrets("SUPABASE_KEY")
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-SALT = st.secrets["SALT"]
-USERS_FILE = "users.csv"
-
-def hash_senha(senha):
-    return hashlib.sha256((senha + SALT).encode()).hexdigest()
-
-def carregar_usuarios():
-    if not os.path.exists(USERS_FILE):
-       df = pd.DataFrame(columns=["nome", "email", "senha"])
-       df.to_csv(USERS_FILE, index=False)
-    return pd.read_csv(USERS_FILE)
-        
-
-def autenticar(email, senha):
-    df = carregar_usuarios()
-    senha_hash = hash_senha(senha)
-
-    usuario = df[(df["email"] == email) & (df["senha"] == senha_hash)]
-    
-    if not usuario.empty:
-        return usuario.iloc[0]["nome"]
-    
-    return None
-
-def cadastrar_usuario(nome, email, senha):
-    response = supabase.auth.sign_up(
-        {
-            "email": email,
-            "password": senha,
-            "options":{
-                "data": {
-                    "nome": nome
-                }
-            }
-        }
-    )
 
 
 def mostrar_login():
@@ -54,27 +15,25 @@ def mostrar_login():
     senha = st.text_input("Senha", type="password")
 
     if st.button("Entrar"):
-        nome = autenticar(email, senha)
+        try:
+            response = supabase.auth.sign_in_with_password({
+                "email": email,
+                "password": senha
+            })
 
-        if nome: 
+            user = response.user
+            nome = user.user_metadata.get("nome", "Usuário")
+
             st.session_state.logado = True
-            st.session_state.usuario = email
+            st.session_state.usuario = user.email
             st.session_state.nome = nome
             st.session_state.pagina = "app"
             st.rerun()
-        
-        else:
+
+        except Exception:
             st.error("Email ou senha inválidos")
 
-    st.button(
-       "Criar conta",
-       on_click=lambda: mudar_pagina("cadastro")
-    )
-
-    st.button(
-        "Esqueci minha senha",
-        on_click=lambda:mudar_pagina("esqueci")
-    )
+    st.button("Criar conta", on_click=lambda: mudar_pagina("cadastro"))
 
 
 def mostrar_cadastro():
@@ -88,13 +47,25 @@ def mostrar_cadastro():
     if st.button("Cadastrar"):
         if senha != confirmar:
             st.error("As senhas devem ser idênticas!")
+            return
         
-        elif cadastrar_usuario(nome, email, senha):
+        try:
+            supabase.auth.sign_up({
+                "email": email,
+                "password": senha,
+                "options":{
+                    "data":{
+                        "nome": nome
+                    }
+                }
+            })
+
             st.success("Conta criada com sucesso!")
             mudar_pagina("login")
             st.rerun()
-        else:
-            st.error("Email ja cadastrado")
+
+        except Exception as e:
+            st.error("Erro ai criar conta")
         
     st.button("Voltar", on_click=lambda: mudar_pagina("login"))
 
@@ -103,7 +74,6 @@ def mostrar_cadastro():
 def mostrar_esqueci_senha():
     st.title("Recuperar senha")
     st.info("Funcionalidade em desenvolvimento")
-
 
     st.button("Voltar", on_click=lambda: mudar_pagina("login"))
 

@@ -57,10 +57,9 @@ if "nome" not in st.session_state:
     st.session_state.nome = None
 
 def mostrar_app():
-    user = supabase.auth.get_user()
-    nome = user.user_metadata.get("nome", "Usuário")
+   
 
-    st.sidebar.success(f"Olá, {nome}")
+    st.sidebar.success(f"Olá, {st.session_state.nome}")
 
     if st.sidebar.button("Sair"):  
        supabase.auth.sign_out()
