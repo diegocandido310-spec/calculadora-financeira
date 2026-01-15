@@ -2,6 +2,12 @@ import pandas as pd
 import streamlit as st
 import os 
 import hashlib
+from supabase import create_client
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 SALT = st.secrets["SALT"]
 USERS_FILE = "users.csv"
@@ -28,20 +34,17 @@ def autenticar(email, senha):
     return None
 
 def cadastrar_usuario(nome, email, senha):
-    df = carregar_usuarios()
-
-    if email in df["email"].values:
-        return False
-    
-    novo = pd.DataFrame(
-        [[nome, email, hash_senha(senha)]],
-        columns=["nome", "email", "senha"]
+    response = supabase.auth.sign_up(
+        {
+            "email": email,
+            "password": senha,
+            "options":{
+                "data": {
+                    "nome": nome
+                }
+            }
+        }
     )
-
-    df = pd.concat([df, novo], ignore_index=True)
-    df.to_csv(USERS_FILE, index=False)
-    return True
-
 
 
 def mostrar_login():
