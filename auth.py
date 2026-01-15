@@ -7,6 +7,28 @@ SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+def cadastrar_usuario(nome, email, senha):
+    try:
+        response = supabase.auth.sign_up(
+            {
+                "email": email,
+                "password": senha,
+                "options": {
+                    "data": {
+                        "nome": nome
+                    }
+                }
+            }
+        )
+
+        if response.user:
+            return True
+        else:
+            return False
+        
+    except Exception as e:
+        st.error(f"Erro ao criar conta{e}")
+        return False
 
 def mostrar_login():
     st.title("Login")
@@ -65,7 +87,7 @@ def mostrar_cadastro():
             st.rerun()
 
         except Exception as e:
-            st.error("Erro ai criar conta")
+            st.error("Erro ao criar conta")
         
     st.button("Voltar", on_click=lambda: mudar_pagina("login"))
 
