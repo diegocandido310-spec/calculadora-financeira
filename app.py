@@ -2,6 +2,12 @@ import streamlit as st
 import pandas as pd
 import os
 from auth import mostrar_login, mostrar_esqueci_senha, mostrar_cadastro
+from supabase import create_client
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 DATA_DIR = "data"
 
@@ -51,11 +57,15 @@ if "nome" not in st.session_state:
     st.session_state.nome = None
 
 def mostrar_app():
-    nome = st.session_state.nome 
+    user = supabase.auth.get_user()
+    nome = user.user_metadata.get("nome", "Usuário")
+
     st.sidebar.success(f"Olá, {nome}")
 
     if st.sidebar.button("Sair"):  
-       logout()
+       supabase.auth.sign_out()
+       st.session_state.clear()
+       st.rerun()
     
     st.title("Calculadora Financeira")
     st.caption("Controle simples de ganhos e despesas")
