@@ -5,7 +5,7 @@ from auth import mostrar_login, mostrar_esqueci_senha, mostrar_cadastro
 from supabase import create_client
 
 SUPABASE_URL = st.secrets ["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_ANON_KEY"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
