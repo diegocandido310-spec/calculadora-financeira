@@ -1,5 +1,8 @@
 import streamlit as st 
+import pandas as pd
 import os
+import calendar
+from datetime import timedelta, date
 from auth import mostrar_login, mostrar_esqueci_senha, mostrar_cadastro
 from supabase import create_client
 
@@ -69,7 +72,7 @@ def mostrar_app():
     st.sidebar.success(f"Olá, {st.session_state.nome}")
 
     if st.sidebar.button("Sair"):
-       supabase = get_supabase 
+       supabase = get_supabase()
        supabase.auth.sign_out()
        st.session_state.clear()
        st.rerun()
@@ -124,30 +127,146 @@ def mostrar_app():
         st.subheader("Resumo")
 
         supabase = get_supabase()
-        user = supabase.auth.get_user()
+        
+        st.markdown("Filtro de períodos")
 
-        ganhos = (
-            supabase
-            .table("ganhos")
-            .select("valor")
-            .eq("user_id", user.user.id)
-            .execute()
-            .data
+        tipo_filtro = st.radio(
+            "Visualizar por:",
+            ["Dia", "Semana", "Mês"],
+            horizontal=True
         )
-        despesas =( 
-            supabase
-            .table("despesas")
-            .select("*")
-            .eq("user_id", user.user.id)
-            .execute()
-            .data
-        )
+
+        if tipo_filtro == "Dia":
+            data_inicio = st.date_input("Escolha o dia")
+            data_fim = data_inicio
+
+        elif tipo_filtro == "Semana":
+            data_ref = st.date_input("Escolha uma data da semana")
+
+            data_inicio = data_ref - timedelta(days=data_ref.weekday())
+            data_fim = data_inicio + timedelta(days=6)
+
+            st.caption(
+                f"Semana: {data_inicio.strftime('%d/%m/%y')}"
+                f"até {data_fim.strftime('%d/%m/%y')}"
+            )
+
+        else:
+            col1, col2 = st.columns(2)
+
+            with col1:
+                mes = st.selectbox(
+                    "Mês",
+                    list(range(1, 13)),
+                    format_func=lambda x: calendar.month_name[x]
+                )
+
+            with col2:
+                ano = st.selectbox(
+                    "Ano",
+                    list(range(2026, 2040))
+                )
+
+            ultimo_dia = calendar.monthrange(ano, mes)[1]
+
+            data_inicio = date(ano, mes, 1)
+            data_fim = date(ano, mes, ultimo_dia)
+
+            
+
+        ganhos = supabase.table("ganhos") \
+            .select("*") \
+            .eq("user_id", st.session_state.user_id) \
+            .gte("data_lancamento", data_inicio.isoformat()) \
+            .lte("data_lancamento", data_fim.isoformat()) \
+            .execute().data
+        
+        despesas = supabase.table("despesas") \
+            .select("*") \
+            .eq("user_id", st.session_state.user_id) \
+            .gte("data_lancamento", data_inicio.isoformat()) \
+            .lte("data_lancamento", data_fim.isoformat()) \
+            .execute().data
+        
+        
         total_ganhos = sum(item["valor"] for item in ganhos)
         total_despesas = sum(item["valor"] for item in despesas)
 
-        st.metric("Total de ganhos", f"R$ {total_ganhos:.2f}")
-        st.metric("Total de despesas", f"R$ {total_despesas:.2f}")
-        st.metric("Saldo", f"R$ {(total_ganhos - total_despesas):.2f}")
+        st.divider()
+
+        col1, col2, col3 = st.columns(3)
+
+
+        col1.metric("Total de ganhos", f"R$ {total_ganhos:.2f}")
+        col2.metric("Total de despesas", f"R$ {total_despesas:.2f}")
+        col3.metric("Saldo", f"R$ {(total_ganhos - total_despesas):.2f}")
+
+        st.divider()
+        st.subheader("Relatório detalhado")
+
+        col_g, col_d = st.columns(2)
+
+        with col_g:
+            st.markdown("Ganhos")
+
+            if not ganhos:
+                st.info("Nenhum ganho registrado nesse período.")
+
+            else:
+                df_ganhos = pd.DataFrame(ganhos)
+
+                df_ganhos = df_ganhos[[
+                    "data_lancamento",
+                    "descricao",
+                    "valor"
+                ]]
+
+                df_ganhos["data_lancamento"] = pd.to_datetime(
+                    df_ganhos["data_lancamento"]
+                ).dt.strftime("%d/%m/%y")
+
+                df_ganhos["valor"] = df_ganhos["valor"].map(
+                    lambda x: f"R$ {x:,.2f}"
+                )
+
+                df_ganhos.columns = ["Data", "Descrição", "Valor"]
+
+                st.dataframe(
+                    df_ganhos,
+                    use_container_width=True,
+                    hide_index=True
+                )
+        
+        with col_d:
+            st.markdown("Despesas")
+
+            if not despesas:
+                st.info("Nenhuma despesa registrada nesse período.")
+
+            else:
+                df_despesas = pd.DataFrame(despesas)
+
+                df_despesas = df_despesas[[
+                    "data_lancamento",
+                    "descricao",
+                    "valor"
+                ]]
+
+                df_despesas["data_lancamento"] = pd.to_datetime(
+                    df_despesas["data_lancamento"]
+                ).dt.strftime("%d/%m/%y")
+
+                df_despesas["valor"] = df_despesas["valor"].map(
+                    lambda x: f"R$ {x:,.2f}"
+                )
+
+                df_despesas.columns = ["Data", "Descrição", "Valor"]
+
+                st.dataframe(
+                    df_despesas,
+                    use_container_width=True,
+                    hide_index=True
+                )
 
 if not st.session_state.logado:
     if st.session_state.pagina == "login":
