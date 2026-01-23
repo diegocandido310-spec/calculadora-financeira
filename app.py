@@ -3,11 +3,16 @@ import pandas as pd
 import os
 import calendar
 from datetime import timedelta, date
-from auth import mostrar_login, mostrar_esqueci_senha, mostrar_cadastro
+from auth import mostrar_login, mostrar_esqueci_senha, mostrar_cadastro, mostrar_redefinir_senha
 from supabase import create_client
 
 SUPABASE_URL = st.secrets ["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+
+query_params = st.query_params
+
+if "type" in query_params and query_params["type"] == "recovery":
+    st.session_state.pagina = "redefinir_senha"
 
 def get_supabase():
     client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -277,6 +282,12 @@ if not st.session_state.logado:
 
     elif st.session_state.pagina == "esqueci":
         mostrar_esqueci_senha()
+
+    elif st.session_state.pagina == "esqueci_senha":
+        mostrar_esqueci_senha()
+
+    elif st.session_state.pagina == "redefinir_senha":
+        mostrar_redefinir_senha()
     
     st.stop()
 
